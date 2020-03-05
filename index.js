@@ -62,6 +62,8 @@ async function scanAndRegistry(time) {
               expiry: auth.headers.expiry,
             });
 
+            schedule.lastRegistry = moment();
+
             console.log(
               '\n',
               'Successfully submitted resgistry!'
@@ -70,7 +72,6 @@ async function scanAndRegistry(time) {
             console.log(`Registry error for user: ${user.username}\n`);
           }
 
-          schedule.lastRegistry = moment();
         } catch(e) {
           console.log(`Login error for user: ${user.username}\n`);
         }
