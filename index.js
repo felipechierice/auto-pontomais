@@ -1,8 +1,6 @@
 const axios = require('axios');
 const moment = require('moment');
 
-let lastScan = null;
-
 const USERS = [
   {
     id: 0,
@@ -12,16 +10,21 @@ const USERS = [
       { id: 0, time: '09:00', lastRegistry: null },
       { id: 1, time: '12:00', lastRegistry: null },
       { id: 2, time: '13:00', lastRegistry: null },
-      { id: 3, time: '18:00', lastRegistry: null },
+      { id: 3, time: '18:05', lastRegistry: null },
     ],
-  },
+  }
 ];
 
 async function scanAndRegistry(time) {
-  console.log(`\n\nScanning for \"${time}\" schedules...`)
+  console.log(
+    '\n\n',
+    `Scanning for \"${time}\" schedules...`
+  );
 
-  USERS.map(user => {
-    user.schedules.map(async schedule => {
+  let schedulesRegistered = 0;
+
+  await Promise.all(USERS.map(async user => {
+    await Promise.all(user.schedules.map(async schedule => {
       if(
         time === schedule.time 
         && (
@@ -31,7 +34,7 @@ async function scanAndRegistry(time) {
       ) {
         console.log(
           '\n\n',
-          'User schedule finded!',
+          `User schedule finded for: ${user.username}`,
           '\n',
           `Last registry: ${moment(schedule.lastRegistry).format('LLL')}`
         );
@@ -44,10 +47,7 @@ async function scanAndRegistry(time) {
         try {
           const auth = await signIn(user.username, user.password);
 
-          console.log(
-            '\n',
-            'Successfully authenticated!'
-          );
+          console.log('Successfully authenticated!');
 
           console.log(
             '\n\n',
@@ -58,30 +58,31 @@ async function scanAndRegistry(time) {
             await registry({
               token: auth.data.token,
               client: auth.data.client_id,
-              uid: auth.data.email,
+              uid: auth.data.data.email,
               expiry: auth.headers.expiry,
             });
 
             schedule.lastRegistry = moment();
+            schedulesRegistered++;
 
-            console.log(
-              '\n',
-              'Successfully submitted resgistry!'
-            );
+            console.log('Successfully submitted resgistry!');
           } catch(e) {
-            console.log(`Registry error for user: ${user.username}\n`);
+            console.log(`Registry error for user: ${user.username}`, e);
           }
 
         } catch(e) {
-          console.log(`Login error for user: ${user.username}\n`);
+          console.log(`Login error for user: ${user.username}`);
         }
-      }
-    });
-  });
+      };
+    }));
+  }));
 
-  lastScan = moment();
-
-  console.log(JSON.stringify(USERS), '\n', lastScan, '\n');
+  console.log(
+    '\n',
+    `Total schedules registered: ${schedulesRegistered}`,
+    '\n',
+    '-------------------------------',
+  );
 }
 
 async function signIn(username, password) {
@@ -109,6 +110,7 @@ async function signIn(username, password) {
 async function registry({ token, client, expiry, uid }) {
   const response = await axios({
     method: 'POST',
+    url: 'https://api.pontomais.com.br/api/time_cards/register',
     headers: {
       'Host': 'api.pontomais.com.br',
       'Content-Type': 'application/json;charset=utf-8',
@@ -156,7 +158,7 @@ function loop() {
   const now = moment();
 
   if((now.minutes() % 5) === 0) {
-    const time = `${withZero(now.hours())}:${withZero(now.minutes())}}`;
+    const time = `${withZero(now.hours())}:${withZero(now.minutes())}`;
 
     scanAndRegistry(time);
   }
